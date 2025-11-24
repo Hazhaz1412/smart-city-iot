@@ -1,0 +1,13 @@
+Django==4.2.7
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+psycopg2-binary==2.9.9
+requests==2.31.0
+python-dotenv==1.0.0
+pyld==2.0.3
+rdflib==7.0.0
+rdflib-jsonld==0.6.2
+celery==5.3.4
+redis==5.0.1
+geopy==2.4.1
+pytz==2023.3

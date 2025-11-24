@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: smartcity_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - smartcity_network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - smartcity_network
+    command: redis-server --appendonly yes
+
+  mongo:
+    image: mongo:6.0
+    command: --replSet rs0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - smartcity_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  orion-ld:
+    image: fiware/orion-ld:1.5.1
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "1026:1026"
+    command: -dbhost mongo -logLevel DEBUG -forwarding -experimental
+    networks:
+      - smartcity_network
+    healthcheck:
+      test: curl --fail -s http://localhost:1026/version || exit 1
+      interval: 10s
+
+  django:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - smartcity_network
+
+  # orion-ld:
+  #   image: fiware/orion-ld:1.5.1
+  #   depends_on:
+  #     mongo:
+  #       condition: service_healthy
+  #   ports:
+  #     - "1026:1026"
+  #   command: -dbhost mongo -logLevel DEBUG -forwarding -experimental
+  #   networks:
+  #     - smartcity_network
+  #   healthcheck:
+  #     test: curl --fail -s http://localhost:1026/version || exit 1
+  #     interval: 10s
+
+  celery_worker:
+    build: .
+    command: celery -A smartcity worker -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - smartcity_network
+
+  celery_beat:
+    build: .
+    command: celery -A smartcity beat -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - smartcity_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - django
+    networks:
+      - smartcity_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongo_data:
+
+networks:
+  smartcity_network:
+    driver: bridge
