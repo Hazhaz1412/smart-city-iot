@@ -118,26 +118,31 @@ def google_login(request):
         # Check if user exists
         user = None
         try:
-            user = CustomUser.objects.get(Q(email=email) | Q(google_id=google_id))
-            # Update google_id if not set
-            if not user.google_id:
-                user.google_id = google_id
-                user.save()
+            # Try to find by google_id first (most specific)
+            user = CustomUser.objects.get(google_id=google_id)
         except CustomUser.DoesNotExist:
-            # Create new user
-            username = email.split('@')[0]
-            # Make username unique if needed
-            base_username = username
-            counter = 1
-            while CustomUser.objects.filter(username=username).exists():
-                username = f"{base_username}{counter}"
-                counter += 1
-            
-            user = CustomUser.objects.create_user(
-                username=username,
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
+            # Try to find by email
+            try:
+                user = CustomUser.objects.get(email=email)
+                # Update google_id if not set
+                if not user.google_id:
+                    user.google_id = google_id
+                    user.save()
+            except CustomUser.DoesNotExist:
+                # Create new user
+                username = email.split('@')[0]
+                # Make username unique if needed
+                base_username = username
+                counter = 1
+                while CustomUser.objects.filter(username=username).exists():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+                
+                user = CustomUser.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
                 google_id=google_id
             )
             # Set unusable password for OAuth users
@@ -173,6 +178,40 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     
     def get_object(self):
         return self.request.user
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Change user password"""
+    user = request.user
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+    
+    if not old_password or not new_password:
+        return Response({
+            'error': 'Both old_password and new_password are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check old password
+    if not user.check_password(old_password):
+        return Response({
+            'error': 'Mật khẩu hiện tại không đúng'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validate new password
+    if len(new_password) < 6:
+        return Response({
+            'error': 'Mật khẩu mới phải có ít nhất 6 ký tự'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Set new password
+    user.set_password(new_password)
+    user.save()
+    
+    return Response({
+        'message': 'Đổi mật khẩu thành công'
+    }, status=status.HTTP_200_OK)
 
 
 class UserDeviceViewSet(viewsets.ModelViewSet):

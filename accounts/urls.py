@@ -7,6 +7,7 @@ from .views import (
     login_view,
     google_login,
     UserProfileView,
+    change_password,
     UserDeviceViewSet,
     PublicDeviceViewSet,
 )
@@ -24,6 +25,7 @@ urlpatterns = [
     
     # User profile
     path('profile/', UserProfileView.as_view(), name='profile'),
+    path('change-password/', change_password, name='change-password'),
     
     # Devices
     path('', include(router.urls)),

@@ -12,6 +12,7 @@ import MyDevicesPage from './pages/MyDevicesPage';
 import AddDevicePage from './pages/AddDevicePage';
 import DeviceDetailPage from './pages/DeviceDetailPage';
 import EditDevicePage from './pages/EditDevicePage';
+import ProfilePage from './pages/ProfilePage';
 import DebugPage from './pages/DebugPage';
 
 function Navigation() {
@@ -49,15 +50,15 @@ function Navigation() {
                 <Link to="/my-devices" className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800">
                   📡 Thiết bị của tôi
                 </Link>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-700">👤 {user?.username}</span>
-                  <button
-                    onClick={logout}
-                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800"
-                  >
-                    Đăng xuất
-                  </button>
-                </div>
+                <Link to="/profile" className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
+                  👤 {user?.username}
+                </Link>
+                <button
+                  onClick={logout}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:text-red-800"
+                >
+                  Đăng xuất
+                </button>
               </>
             ) : (
               <>
@@ -128,6 +129,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <EditDevicePage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
                   </ProtectedRoute>
                 } 
               />
