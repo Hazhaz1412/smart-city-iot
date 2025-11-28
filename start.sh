@@ -5,7 +5,7 @@ echo "Smart City Backend - Quick Start"
 echo "======================================"
 
 # Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
+if ! sudo docker info > /dev/null 2>&1; then
     echo "Error: Docker is not running. Please start Docker first."
     exit 1
 fi
@@ -19,7 +19,7 @@ fi
 
 echo ""
 echo "Starting services with Docker Compose..."
-docker-compose up -d
+sudo docker-compose up -d
 
 echo ""
 echo "Waiting for services to be ready..."
@@ -27,12 +27,12 @@ sleep 10
 
 echo ""
 echo "Running database migrations..."
-docker-compose exec -T django python manage.py makemigrations
-docker-compose exec -T django python manage.py migrate
+sudo docker-compose exec -T django python manage.py makemigrations
+sudo docker-compose exec -T django python manage.py migrate
 
 echo ""
 echo "Creating superuser..."
-docker-compose exec -T django python manage.py shell << EOF
+sudo docker-compose exec -T django python manage.py shell << EOF
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(username='admin').exists():
@@ -57,7 +57,7 @@ echo "  Username: admin"
 echo "  Password: admin123"
 echo ""
 echo "Useful commands:"
-echo "  - View logs:     docker-compose logs -f"
-echo "  - Stop services: docker-compose down"
-echo "  - Restart:       docker-compose restart"
+echo "  - View logs:     sudo docker-compose logs -f"
+echo "  - Stop services: sudo docker-compose down"
+echo "  - Restart:       sudo docker-compose restart"
 echo ""
