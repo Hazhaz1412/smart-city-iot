@@ -181,6 +181,7 @@ class UserDeviceViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     
     def get_queryset(self):
+        # Only show devices owned by the current user
         user = self.request.user
         queryset = UserDevice.objects.filter(user=user)
         
@@ -195,6 +196,25 @@ class UserDeviceViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status)
         
         return queryset.select_related('user').prefetch_related('readings')
+    
+    def perform_create(self, serializer):
+        """Automatically set the user when creating a device"""
+        serializer.save(user=self.request.user)
+    
+    def perform_update(self, serializer):
+        """Verify ownership before updating"""
+        device = self.get_object()
+        if device.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to edit this device")
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        """Verify ownership before deleting"""
+        if instance.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to delete this device")
+        instance.delete()
     
     @action(detail=True, methods=['post'])
     def add_reading(self, request, pk=None):
@@ -260,11 +280,37 @@ class UserDeviceViewSet(viewsets.ModelViewSet):
             'active_devices': devices.filter(status='active').count(),
             'inactive_devices': devices.filter(status='inactive').count(),
             'public_devices': devices.filter(is_public=True).count(),
+            'verified_devices': devices.filter(is_verified=True).count(),
             'by_type': dict(devices.values('device_type').annotate(count=Count('id')).values_list('device_type', 'count')),
             'total_readings': DeviceData.objects.filter(device__user=user).count(),
         }
         
         return Response(stats)
+    
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    def verify(self, request, pk=None):
+        """Admin action: Mark device as verified/trusted"""
+        device = self.get_object()
+        device.is_verified = True
+        device.verified_at = timezone.now()
+        device.verified_by = request.user
+        device.save(update_fields=['is_verified', 'verified_at', 'verified_by'])
+        
+        return Response({
+            'message': f'Device {device.name} has been verified',
+            'device': self.get_serializer(device).data
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    def unverify(self, request, pk=None):
+        """Admin action: Remove verification"""
+        device = self.get_object()
+        device.is_verified = False
+        device.verified_at = None
+        device.verified_by = None
+        device.save(update_fields=['is_verified', 'verified_at', 'verified_by'])
+        
+        return Response({'message': f'Verification removed from {device.name}'})
 
 
 class PublicDeviceViewSet(viewsets.ReadOnlyModelViewSet):

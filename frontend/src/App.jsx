@@ -10,6 +10,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import MyDevicesPage from './pages/MyDevicesPage';
 import AddDevicePage from './pages/AddDevicePage';
+import DeviceDetailPage from './pages/DeviceDetailPage';
+import EditDevicePage from './pages/EditDevicePage';
 import DebugPage from './pages/DebugPage';
 
 function Navigation() {
@@ -110,6 +112,22 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <AddDevicePage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/device/:id" 
+                element={
+                  <ProtectedRoute>
+                    <DeviceDetailPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/device/:id/edit" 
+                element={
+                  <ProtectedRoute>
+                    <EditDevicePage />
                   </ProtectedRoute>
                 } 
               />

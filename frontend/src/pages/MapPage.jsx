@@ -16,16 +16,21 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+const API_URL = 'http://localhost:8000/api/v1';
+
 export default function MapPage() {
   const [weatherStations, setWeatherStations] = useState([]);
   const [airQualitySensors, setAirQualitySensors] = useState([]);
   const [publicServices, setPublicServices] = useState([]);
+  const [userDevices, setUserDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [layers, setLayers] = useState({
     weather: true,
     airQuality: true,
     services: true,
+    userDevices: true,
   });
+  const [showUnverified, setShowUnverified] = useState(true);
 
   const center = [21.0285, 105.8542]; // Hanoi
 
@@ -45,6 +50,18 @@ export default function MapPage() {
       setWeatherStations(weather.data.results || weather.data || []);
       setAirQualitySensors(airQuality.data.results || airQuality.data || []);
       setPublicServices(services.data.results || services.data || []);
+
+      // Load public user devices
+      try {
+        const devicesRes = await fetch(`${API_URL}/auth/public-devices/`);
+        if (devicesRes.ok) {
+          const devicesData = await devicesRes.json();
+          console.log('Public devices:', devicesData);
+          setUserDevices(devicesData.results || devicesData || []);
+        }
+      } catch (err) {
+        console.error('Failed to load user devices:', err);
+      }
     } catch (error) {
       console.error('Error loading map data:', error);
     } finally {
@@ -104,7 +121,31 @@ export default function MapPage() {
             />
             <span className="text-sm">🏛️ Dịch vụ công cộng ({publicServices.length})</span>
           </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={layers.userDevices}
+              onChange={() => toggleLayer('userDevices')}
+              className="rounded text-primary-600 mr-2"
+            />
+            <span className="text-sm">📡 Thiết bị người dùng ({userDevices.length})</span>
+          </label>
         </div>
+        
+        {/* Verified Filter */}
+        {layers.userDevices && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={showUnverified}
+                onChange={(e) => setShowUnverified(e.target.checked)}
+                className="rounded text-primary-600 mr-2"
+              />
+              <span className="text-sm">Hiển thị thiết bị chưa xác minh</span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Map */}
@@ -183,13 +224,57 @@ export default function MapPage() {
               </Popup>
             </Marker>
           ))}
+
+          {/* User Devices */}
+          {layers.userDevices && userDevices
+            .filter(device => showUnverified || device.is_verified)
+            .map(device => (
+            <Marker 
+              key={`user-${device.id}`} 
+              position={[device.latitude, device.longitude]}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h3 className="font-bold text-indigo-600">
+                    {getDeviceIcon(device.device_type)} {device.name}
+                  </h3>
+                  {device.is_verified && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">
+                      ✓ Đã xác minh
+                    </span>
+                  )}
+                  <p className="text-sm text-gray-600 mt-1">
+                    <strong>Owner:</strong> {device.user_username}
+                  </p>
+                  {device.description && (
+                    <p className="text-sm text-gray-600 mt-1">{device.description}</p>
+                  )}
+                  {device.address && (
+                    <p className="text-xs text-gray-500 mt-1">📍 {device.address}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    {device.status === 'active' ? '✅ Hoạt động' : '❌ Không hoạt động'}
+                  </p>
+                </div>
+              </Popup>
+              <Circle
+                center={[device.latitude, device.longitude]}
+                radius={300}
+                pathOptions={{ 
+                  color: device.is_verified ? 'indigo' : 'orange', 
+                  fillColor: device.is_verified ? 'indigo' : 'orange', 
+                  fillOpacity: 0.1 
+                }}
+              />
+            </Marker>
+          ))}
         </MapContainer>
       </div>
 
       {/* Legend */}
       <div className="bg-white shadow rounded-lg p-4">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Chú thích</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
           <div className="flex items-center">
             <div className="w-4 h-4 rounded-full bg-blue-500 mr-2"></div>
             <span>Trạm thời tiết</span>
@@ -202,10 +287,28 @@ export default function MapPage() {
             <div className="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
             <span>Dịch vụ công cộng</span>
           </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-indigo-500 mr-2"></div>
+            <span>Thiết bị đã xác minh</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-orange-500 mr-2"></div>
+            <span>Thiết bị chưa xác minh</span>
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+function getDeviceIcon(type) {
+  const icons = {
+    weather_station: '🌤️',
+    air_quality_sensor: '💨',
+    traffic_sensor: '🚦',
+    custom: '📡'
+  };
+  return icons[type] || '📡';
 }
 
 function getServiceIcon(type) {

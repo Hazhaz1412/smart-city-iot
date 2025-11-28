@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import uuid
 
 
 class CustomUser(AbstractUser):
@@ -48,7 +49,7 @@ class UserDevice(models.Model):
     # Device info
     name = models.CharField(max_length=255)
     device_type = models.CharField(max_length=50, choices=DEVICE_TYPES)
-    device_id = models.CharField(max_length=255, unique=True)
+    device_id = models.CharField(max_length=255, unique=True, blank=True)
     description = models.TextField(blank=True, null=True)
     
     # Location
@@ -59,6 +60,9 @@ class UserDevice(models.Model):
     # Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     is_public = models.BooleanField(default=False, help_text="Allow others to view this device data")
+    is_verified = models.BooleanField(default=False, help_text="Verified by admin as trusted device")
+    verified_at = models.DateTimeField(blank=True, null=True)
+    verified_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_devices')
     
     # API/Connection info
     api_endpoint = models.URLField(blank=True, null=True, help_text="External API endpoint for this device")
@@ -70,6 +74,31 @@ class UserDevice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_seen = models.DateTimeField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        # Auto-generate unique device_id if not provided
+        if not self.device_id:
+            # Create prefix based on device type
+            prefix_map = {
+                'weather_station': 'WS',
+                'air_quality_sensor': 'AQ',
+                'traffic_sensor': 'TS',
+                'custom': 'CT'
+            }
+            prefix = prefix_map.get(self.device_type, 'DV')
+            
+            # Generate unique ID: TYPE-XXXXXX (e.g., WS-A3B5C7)
+            unique_id = uuid.uuid4().hex[:6].upper()
+            self.device_id = f"{prefix}-{unique_id}"
+            
+            # Ensure uniqueness (in case of collision)
+            counter = 1
+            base_id = self.device_id
+            while UserDevice.objects.filter(device_id=self.device_id).exists():
+                self.device_id = f"{base_id}{counter}"
+                counter += 1
+        
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'user_devices'

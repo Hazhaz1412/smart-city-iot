@@ -48,9 +48,10 @@ class UserDeviceSerializer(serializers.ModelSerializer):
         model = UserDevice
         fields = ('id', 'user', 'user_username', 'name', 'device_type', 'device_id', 
                   'description', 'latitude', 'longitude', 'address', 'status', 'is_public',
-                  'api_endpoint', 'metadata', 'created_at', 'updated_at', 'last_seen',
-                  'latest_reading')
-        read_only_fields = ('id', 'user', 'created_at', 'updated_at', 'last_seen')
+                  'is_verified', 'verified_at', 'api_endpoint', 'metadata', 'created_at', 
+                  'updated_at', 'last_seen', 'latest_reading')
+        read_only_fields = ('id', 'user', 'device_id', 'is_verified', 'verified_at', 
+                           'created_at', 'updated_at', 'last_seen')
         extra_kwargs = {
             'api_key': {'write_only': True}
         }
