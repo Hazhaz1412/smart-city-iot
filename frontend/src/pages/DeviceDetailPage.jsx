@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import DeviceConfigModal from '../components/DeviceConfigModal';
 
 // Fix Leaflet icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -21,6 +22,7 @@ export default function DeviceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mapReady, setMapReady] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
 
   useEffect(() => {
     loadDeviceData();
@@ -153,6 +155,13 @@ export default function DeviceDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {showConfigModal && (
+        <DeviceConfigModal 
+          device={device} 
+          onClose={() => setShowConfigModal(false)} 
+        />
+      )}
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6">
@@ -220,6 +229,12 @@ export default function DeviceDetailPage() {
 
               {/* Actions */}
               <div className="mt-6 flex space-x-3">
+                <button
+                  onClick={() => setShowConfigModal(true)}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white text-center rounded-lg hover:bg-green-700 font-medium"
+                >
+                  📋 Xem API Key & Hướng dẫn
+                </button>
                 <Link
                   to={`/device/${id}/edit`}
                   className="flex-1 px-4 py-2 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700"

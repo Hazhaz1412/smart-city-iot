@@ -11,7 +11,7 @@ from django.utils import timezone
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
-from .models import CustomUser, UserDevice, DeviceData
+from .models import CustomUser, UserDevice, DeviceData, DeviceAPIKey
 from .serializers import (
     UserRegistrationSerializer, 
     UserProfileSerializer,
@@ -199,7 +199,9 @@ class UserDeviceViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Automatically set the user when creating a device"""
-        serializer.save(user=self.request.user)
+        device = serializer.save(user=self.request.user)
+        # Auto-generate API key for device
+        DeviceAPIKey.objects.create(device=device)
     
     def perform_update(self, serializer):
         """Verify ownership before updating"""
@@ -300,6 +302,56 @@ class UserDeviceViewSet(viewsets.ModelViewSet):
             'message': f'Device {device.name} has been verified',
             'device': self.get_serializer(device).data
         })
+    
+    @action(detail=True, methods=['get'])
+    def api_key(self, request, pk=None):
+        """Get API key for this device (owner only)"""
+        device = self.get_object()
+        
+        # Verify ownership
+        if device.user != request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to view this device's API key")
+        
+        # Get or create API key
+        api_key, created = DeviceAPIKey.objects.get_or_create(device=device)
+        
+        return Response({
+            'device_id': device.device_id,
+            'api_key': api_key.key,
+            'created_at': api_key.created_at,
+            'last_used': api_key.last_used,
+            'is_active': api_key.is_active,
+            'message': 'Keep this API key secret! It allows sending data to your device.'
+        })
+    
+    @action(detail=True, methods=['post'])
+    def regenerate_api_key(self, request, pk=None):
+        """Regenerate API key if compromised (owner only)"""
+        device = self.get_object()
+        
+        # Verify ownership
+        if device.user != request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to regenerate this device's API key")
+        
+        try:
+            api_key = device.device_api_key
+            old_key = api_key.key[:16] + "..."
+            api_key.regenerate()
+            
+            return Response({
+                'message': 'API key regenerated successfully',
+                'old_key_preview': old_key,
+                'new_api_key': api_key.key,
+                'warning': 'Your old API key is now invalid. Update your IoT device with the new key.'
+            })
+        except DeviceAPIKey.DoesNotExist:
+            api_key = DeviceAPIKey.objects.create(device=device)
+            return Response({
+                'message': 'API key created',
+                'api_key': api_key.key
+            })
     
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def unverify(self, request, pk=None):

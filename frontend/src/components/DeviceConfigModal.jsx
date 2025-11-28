@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 const API_URL = 'http://localhost:8000/api/v1';
 const ORION_LD_URL = 'http://localhost:1026';
@@ -6,7 +7,28 @@ const ORION_LD_URL = 'http://localhost:1026';
 export default function DeviceConfigModal({ device, onClose }) {
   const [copied, setCopied] = useState('');
   const [activeTab, setActiveTab] = useState('rest'); // 'rest' or 'orion'
+  const [deviceApiKey, setDeviceApiKey] = useState('');
+  const [loading, setLoading] = useState(true);
   const token = localStorage.getItem('access_token');
+
+  useEffect(() => {
+    // Fetch device-specific API key
+    const fetchApiKey = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/auth/devices/${device.id}/api_key/`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setDeviceApiKey(response.data.api_key);
+      } catch (error) {
+        console.error('Failed to fetch API key:', error);
+        setDeviceApiKey('ERROR_FETCHING_KEY');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchApiKey();
+  }, [device.id, token]);
 
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text);
@@ -20,7 +42,7 @@ from datetime import datetime
 
 # Cấu hình thiết bị
 DEVICE_ID = "${device.device_id}"
-API_TOKEN = "${token}"
+API_KEY = "${deviceApiKey}"  # Device-specific API Key (không expire)
 API_ENDPOINT = "${API_URL}/auth/devices/${device.id}/add_reading/"
 
 def send_data(sensor_data):
@@ -36,7 +58,7 @@ def send_data(sensor_data):
     }
     
     headers = {
-        "Authorization": f"Bearer {API_TOKEN}",
+        "X-Device-API-Key": API_KEY,  # Sử dụng Device API Key
         "Content-Type": "application/json"
     }
     
@@ -77,7 +99,7 @@ const char* password = "YOUR_WIFI_PASSWORD";
 
 // Device configuration
 const char* deviceId = "${device.device_id}";
-const char* apiToken = "${token}";
+const char* apiKey = "${deviceApiKey}";  // Device API Key
 const char* apiEndpoint = "${API_URL}/auth/devices/${device.id}/add_reading/";
 
 void setup() {
@@ -99,7 +121,7 @@ void sendData(float temperature, float humidity) {
     
     http.begin(apiEndpoint);
     http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", String("Bearer ") + apiToken);
+    http.addHeader("X-Device-API-Key", apiKey);  // Use Device API Key
     
     // Create JSON payload
     StaticJsonDocument<200> doc;
@@ -138,7 +160,7 @@ void loop() {
 
   const curlExample = `# Test gửi dữ liệu bằng curl
 curl -X POST "${API_URL}/auth/devices/${device.id}/add_reading/" \\
-  -H "Authorization: Bearer ${token}" \\
+  -H "X-Device-API-Key: ${deviceApiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "data": {
@@ -359,23 +381,30 @@ curl -X PATCH "${ORION_LD_URL}/ngsi-ld/v1/entities/urn:ngsi-ld:Device:${device.d
             </div>
           </div>
 
-          {/* API Token */}
+          {/* Device API Key */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <h4 className="font-semibold text-yellow-900 mb-2">🔑 API Token</h4>
+            <h4 className="font-semibold text-yellow-900 mb-2">🔑 Device API Key</h4>
             <p className="text-sm text-yellow-700 mb-2">
-              Sử dụng token này để xác thực khi gửi dữ liệu:
+              Key riêng cho thiết bị này - Không expire, chỉ dùng cho device này:
             </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-white px-3 py-2 rounded font-mono text-xs break-all">
-                {token}
-              </code>
-              <button
-                onClick={() => copyToClipboard(token, 'token')}
-                className="px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
-              >
-                {copied === 'token' ? '✓ Copied' : 'Copy'}
-              </button>
-            </div>
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin h-5 w-5 border-2 border-yellow-600 border-t-transparent rounded-full"></div>
+                <span className="text-sm text-yellow-700">Đang tạo API key...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-white px-3 py-2 rounded font-mono text-xs break-all">
+                  {deviceApiKey}
+                </code>
+                <button
+                  onClick={() => copyToClipboard(deviceApiKey, 'api_key')}
+                  className="px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                >
+                  {copied === 'api_key' ? '✓ Copied' : 'Copy'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* API Endpoint */}
@@ -525,11 +554,14 @@ curl -X PATCH "${ORION_LD_URL}/ngsi-ld/v1/entities/urn:ngsi-ld:Device:${device.d
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-semibold text-blue-900 mb-2">💡 Lưu ý quan trọng</h4>
             <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-              <li>Lưu lại <strong>Device ID</strong> và <strong>API Token</strong> để cấu hình thiết bị IoT</li>
-              <li>Token này chỉ hiển thị một lần, hãy sao chép ngay bây giờ</li>
-              <li>Dữ liệu gửi lên phải có định dạng: <code>{"{"}"data": {"{"}"key": "value"{"}"}{"}"}</code></li>
-              <li>Bạn có thể gửi bất kỳ key nào trong object <code>data</code></li>
+              <li>Lưu lại <strong>Device ID</strong> và <strong>Device API Key</strong> để cấu hình thiết bị IoT</li>
+              <li><strong>Device API Key không bao giờ expire</strong> - khác với user JWT token</li>
+              <li>Mỗi thiết bị có 1 API key riêng, chỉ có thể gửi data cho device đó</li>
+              <li>Header authentication: <code>X-Device-API-Key: {"<"}your_key{">"}</code></li>
+              <li>Dữ liệu gửi lên: <code>{"{"}"data": {"{"}"temperature": 25.5, "humidity": 60{"}"}{"}"}</code></li>
+              <li>Bạn có thể gửi bất kỳ field nào trong object <code>data</code></li>
               <li>Hệ thống tự động cập nhật <code>last_seen</code> mỗi khi nhận dữ liệu</li>
+              <li>Nếu API key bị lộ, vào device detail để regenerate key mới</li>
             </ul>
           </div>
         </div>
