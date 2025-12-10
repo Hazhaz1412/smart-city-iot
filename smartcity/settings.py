@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     'sensors',
     'observations',
     'integrations',
+    'traffic',
+    'infrastructure',
 ]
 
 MIDDLEWARE = [

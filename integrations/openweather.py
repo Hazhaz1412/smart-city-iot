@@ -9,13 +9,27 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def get_openweather_api_key(user=None):
+    """Get OpenWeatherMap API key from database or settings"""
+    try:
+        from .models import get_api_key_for_provider
+        key = get_api_key_for_provider('openweathermap', user)
+        if key:
+            return key
+    except Exception as e:
+        logger.warning(f"Failed to get API key from database: {e}")
+    
+    # Fallback to settings
+    return getattr(settings, 'OPENWEATHER_API_KEY', None)
+
+
 class OpenWeatherMapClient:
     """Client for OpenWeatherMap API"""
     
     BASE_URL = "https://api.openweathermap.org/data/2.5"
     
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or settings.OPENWEATHER_API_KEY
+    def __init__(self, api_key: str = None, user=None):
+        self.api_key = api_key or get_openweather_api_key(user)
     
     def get_current_weather(self, lat: float, lon: float):
         """Get current weather data"""

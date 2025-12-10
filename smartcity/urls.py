@@ -12,7 +12,9 @@ urlpatterns = [
     path('api/v1/', include('entities.urls')),
     path('api/v1/', include('sensors.urls')),
     path('api/v1/', include('observations.urls')),
-    path('api/v1/', include('integrations.urls')),
+    path('api/v1/integrations/', include('integrations.urls')),
+    path('api/v1/traffic/', include('traffic.urls')),
+    path('api/v1/infrastructure/', include('infrastructure.urls')),
     path('api/v1/', include('core.urls')),
 ]
 

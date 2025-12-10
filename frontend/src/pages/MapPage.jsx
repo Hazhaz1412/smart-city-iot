@@ -5,6 +5,7 @@ import {
   airQualityAPI, 
   publicServiceAPI 
 } from '../api';
+import api from '../api';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -23,12 +24,22 @@ export default function MapPage() {
   const [airQualitySensors, setAirQualitySensors] = useState([]);
   const [publicServices, setPublicServices] = useState([]);
   const [userDevices, setUserDevices] = useState([]);
+  const [busStations, setBusStations] = useState([]);
+  const [parkingSpots, setParkingSpots] = useState([]);
+  const [trafficFlows, setTrafficFlows] = useState([]);
+  const [streetLights, setStreetLights] = useState([]);
+  const [telecomTowers, setTelecomTowers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [layers, setLayers] = useState({
     weather: true,
     airQuality: true,
     services: true,
     userDevices: true,
+    busStations: true,
+    parking: true,
+    trafficFlow: false,
+    streetLights: false,
+    telecom: false,
   });
   const [showUnverified, setShowUnverified] = useState(true);
 
@@ -50,6 +61,32 @@ export default function MapPage() {
       setWeatherStations(weather.data.results || weather.data || []);
       setAirQualitySensors(airQuality.data.results || airQuality.data || []);
       setPublicServices(services.data.results || services.data || []);
+
+      // Load traffic data
+      try {
+        const [busRes, parkingRes, flowRes] = await Promise.all([
+          api.get('/api/v1/traffic/bus-stations/'),
+          api.get('/api/v1/traffic/parking/'),
+          api.get('/api/v1/traffic/traffic-flows/'),
+        ]);
+        setBusStations(busRes.data.results || busRes.data || []);
+        setParkingSpots(parkingRes.data.results || parkingRes.data || []);
+        setTrafficFlows(flowRes.data.results || flowRes.data || []);
+      } catch (err) {
+        console.error('Failed to load traffic data:', err);
+      }
+
+      // Load infrastructure data
+      try {
+        const [lightsRes, telecomRes] = await Promise.all([
+          api.get('/api/v1/infrastructure/street-lights/'),
+          api.get('/api/v1/infrastructure/telecom/'),
+        ]);
+        setStreetLights(lightsRes.data.results || lightsRes.data || []);
+        setTelecomTowers(telecomRes.data.results || telecomRes.data || []);
+      } catch (err) {
+        console.error('Failed to load infrastructure data:', err);
+      }
 
       // Load public user devices
       try {
@@ -129,6 +166,55 @@ export default function MapPage() {
               className="rounded text-primary-600 mr-2"
             />
             <span className="text-sm">📡 Thiết bị người dùng ({userDevices.length})</span>
+          </label>
+        </div>
+        
+        {/* Traffic & Infrastructure Layers */}
+        <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-gray-200">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={layers.busStations}
+              onChange={() => toggleLayer('busStations')}
+              className="rounded text-red-600 mr-2"
+            />
+            <span className="text-sm">🚌 Bến xe/Trạm ({busStations.length})</span>
+          </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={layers.parking}
+              onChange={() => toggleLayer('parking')}
+              className="rounded text-cyan-600 mr-2"
+            />
+            <span className="text-sm">🅿️ Bãi đỗ xe ({parkingSpots.length})</span>
+          </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={layers.trafficFlow}
+              onChange={() => toggleLayer('trafficFlow')}
+              className="rounded text-orange-600 mr-2"
+            />
+            <span className="text-sm">🚗 Lưu lượng GT ({trafficFlows.length})</span>
+          </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={layers.streetLights}
+              onChange={() => toggleLayer('streetLights')}
+              className="rounded text-yellow-600 mr-2"
+            />
+            <span className="text-sm">💡 Đèn đường ({streetLights.length})</span>
+          </label>
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={layers.telecom}
+              onChange={() => toggleLayer('telecom')}
+              className="rounded text-pink-600 mr-2"
+            />
+            <span className="text-sm">📡 Viễn thông ({telecomTowers.length})</span>
           </label>
         </div>
         
@@ -268,13 +354,171 @@ export default function MapPage() {
               />
             </Marker>
           ))}
+
+          {/* Bus Stations */}
+          {layers.busStations && busStations.map(station => (
+            <Marker 
+              key={`bus-${station.id}`} 
+              position={[station.latitude, station.longitude]}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h3 className="font-bold text-red-600">🚌 {station.name}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{station.city}</p>
+                  <p className="text-xs text-gray-500">
+                    Loại: {station.station_type === 'bus_terminal' ? 'Bến xe' : 
+                          station.station_type === 'metro_station' ? 'Ga metro' : 'Trạm xe buýt'}
+                  </p>
+                  {station.routes && station.routes.length > 0 && (
+                    <p className="text-xs text-gray-500">Tuyến: {station.routes.join(', ')}</p>
+                  )}
+                  <div className="flex gap-1 mt-1">
+                    {station.has_shelter && <span title="Có mái che">🏠</span>}
+                    {station.wheelchair_accessible && <span title="Xe lăn">♿</span>}
+                    {station.has_real_time_info && <span title="Thông tin thời gian thực">📺</span>}
+                  </div>
+                </div>
+              </Popup>
+              <Circle
+                center={[station.latitude, station.longitude]}
+                radius={200}
+                pathOptions={{ color: 'red', fillColor: 'red', fillOpacity: 0.2 }}
+              />
+            </Marker>
+          ))}
+
+          {/* Parking Spots */}
+          {layers.parking && parkingSpots.map(parking => (
+            <Marker 
+              key={`parking-${parking.id}`} 
+              position={[parking.latitude, parking.longitude]}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h3 className="font-bold text-cyan-600">🅿️ {parking.name}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{parking.city}</p>
+                  <p className="text-sm font-medium mt-1">
+                    Trống: <span className={parking.available_spaces > 20 ? 'text-green-600' : 'text-red-600'}>
+                      {parking.available_spaces}/{parking.total_spaces}
+                    </span>
+                  </p>
+                  {parking.price_per_hour && (
+                    <p className="text-xs text-gray-500">Giá: {parking.price_per_hour.toLocaleString()}đ/giờ</p>
+                  )}
+                  <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded ${
+                    parking.status === 'open' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {parking.status === 'open' ? 'Mở cửa' : parking.status === 'full' ? 'Đầy' : 'Đóng'}
+                  </span>
+                </div>
+              </Popup>
+              <Circle
+                center={[parking.latitude, parking.longitude]}
+                radius={150}
+                pathOptions={{ color: 'cyan', fillColor: 'cyan', fillOpacity: 0.2 }}
+              />
+            </Marker>
+          ))}
+
+          {/* Traffic Flow Points */}
+          {layers.trafficFlow && trafficFlows.map(flow => {
+            const congestionColor = {
+              free: 'green',
+              light: 'lime',
+              moderate: 'yellow',
+              heavy: 'orange',
+              severe: 'red'
+            }[flow.congestion_level] || 'gray';
+            return (
+              <Marker 
+                key={`flow-${flow.id}`} 
+                position={[flow.latitude, flow.longitude]}
+              >
+                <Popup>
+                  <div className="p-2">
+                    <h3 className="font-bold text-orange-600">🚗 {flow.road_name}</h3>
+                    <p className="text-sm text-gray-600 mt-1">{flow.city}</p>
+                    <p className="text-sm">Tốc độ TB: <strong>{flow.average_speed?.toFixed(0) || '--'} km/h</strong></p>
+                    <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded bg-${congestionColor}-100 text-${congestionColor}-800`}>
+                      {flow.congestion_level === 'free' ? 'Thông thoáng' :
+                       flow.congestion_level === 'light' ? 'Nhẹ' :
+                       flow.congestion_level === 'moderate' ? 'Trung bình' :
+                       flow.congestion_level === 'heavy' ? 'Đông đúc' : 'Kẹt xe'}
+                    </span>
+                  </div>
+                </Popup>
+                <Circle
+                  center={[flow.latitude, flow.longitude]}
+                  radius={300}
+                  pathOptions={{ color: congestionColor, fillColor: congestionColor, fillOpacity: 0.3 }}
+                />
+              </Marker>
+            );
+          })}
+
+          {/* Street Lights */}
+          {layers.streetLights && streetLights.map(light => (
+            <Marker 
+              key={`light-${light.id}`} 
+              position={[light.latitude, light.longitude]}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h3 className="font-bold text-yellow-600">💡 {light.pole_id}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{light.city}</p>
+                  <p className="text-xs">Loại: {light.lamp_type?.toUpperCase()}</p>
+                  <p className="text-xs">Công suất: {light.power_rating}W</p>
+                  <div className="flex gap-1 mt-1">
+                    {light.is_smart && <span className="px-1 bg-blue-100 text-blue-800 text-xs rounded">IoT</span>}
+                    {light.has_motion_sensor && <span title="Cảm biến chuyển động">👁️</span>}
+                  </div>
+                  <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded ${
+                    light.status === 'on' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {light.status === 'on' ? 'Bật' : light.status === 'dimmed' ? 'Giảm sáng' : 'Tắt'}
+                  </span>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* Telecom Towers */}
+          {layers.telecom && telecomTowers.map(tower => (
+            <Marker 
+              key={`telecom-${tower.id}`} 
+              position={[tower.latitude, tower.longitude]}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h3 className="font-bold text-pink-600">📡 {tower.name}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{tower.city}</p>
+                  <span className={`inline-block px-2 py-0.5 text-xs rounded ${
+                    tower.provider === 'Viettel' ? 'bg-red-100 text-red-800' :
+                    tower.provider === 'VNPT' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                  }`}>
+                    {tower.provider}
+                  </span>
+                  {tower.technologies && tower.technologies.map(tech => (
+                    <span key={tech} className="ml-1 px-1 bg-purple-100 text-purple-800 text-xs rounded">{tech}</span>
+                  ))}
+                  <p className="text-xs mt-1">Kết nối: {tower.active_connections}/{tower.max_connections}</p>
+                  <p className="text-xs">Phủ sóng: {tower.coverage_radius}m</p>
+                </div>
+              </Popup>
+              <Circle
+                center={[tower.latitude, tower.longitude]}
+                radius={tower.coverage_radius || 500}
+                pathOptions={{ color: 'pink', fillColor: 'pink', fillOpacity: 0.1 }}
+              />
+            </Marker>
+          ))}
         </MapContainer>
       </div>
 
       {/* Legend */}
       <div className="bg-white shadow rounded-lg p-4">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Chú thích</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
           <div className="flex items-center">
             <div className="w-4 h-4 rounded-full bg-blue-500 mr-2"></div>
             <span>Trạm thời tiết</span>
@@ -292,8 +536,24 @@ export default function MapPage() {
             <span>Thiết bị đã xác minh</span>
           </div>
           <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
+            <span>Bến xe/Trạm</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-cyan-500 mr-2"></div>
+            <span>Bãi đỗ xe</span>
+          </div>
+          <div className="flex items-center">
             <div className="w-4 h-4 rounded-full bg-orange-500 mr-2"></div>
-            <span>Thiết bị chưa xác minh</span>
+            <span>Lưu lượng giao thông</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-yellow-500 mr-2"></div>
+            <span>Đèn đường</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-pink-500 mr-2"></div>
+            <span>Trạm viễn thông</span>
           </div>
         </div>
       </div>

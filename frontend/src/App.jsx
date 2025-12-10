@@ -6,6 +6,8 @@ import WeatherPage from './pages/WeatherPage';
 import AirQualityPage from './pages/AirQualityPage';
 import MapPage from './pages/MapPage';
 import PublicServicesPage from './pages/PublicServicesPage';
+import TrafficPage from './pages/TrafficPage';
+import InfrastructurePage from './pages/InfrastructurePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import MyDevicesPage from './pages/MyDevicesPage';
@@ -13,6 +15,7 @@ import AddDevicePage from './pages/AddDevicePage';
 import DeviceDetailPage from './pages/DeviceDetailPage';
 import EditDevicePage from './pages/EditDevicePage';
 import ProfilePage from './pages/ProfilePage';
+import APISettingsPage from './pages/APISettingsPage';
 import DebugPage from './pages/DebugPage';
 
 function Navigation() {
@@ -36,6 +39,12 @@ function Navigation() {
               <Link to="/air-quality" className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600">
                 Chất lượng KK
               </Link>
+              <Link to="/traffic" className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600">
+                Giao thông
+              </Link>
+              <Link to="/infrastructure" className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600">
+                Hạ tầng
+              </Link>
               <Link to="/map" className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-primary-600">
                 Bản đồ
               </Link>
@@ -50,6 +59,11 @@ function Navigation() {
                 <Link to="/my-devices" className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800">
                   📡 Thiết bị của tôi
                 </Link>
+                {user?.is_staff && (
+                  <Link to="/api-settings" className="inline-flex items-center px-3 py-2 text-sm font-medium text-orange-600 hover:text-orange-800">
+                    ⚙️ Admin
+                  </Link>
+                )}
                 <Link to="/profile" className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
                   👤 {user?.username}
                 </Link>
@@ -91,6 +105,8 @@ function App() {
               <Route path="/" element={<div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"><Dashboard /></div>} />
               <Route path="/weather" element={<div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"><WeatherPage /></div>} />
               <Route path="/air-quality" element={<div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"><AirQualityPage /></div>} />
+              <Route path="/traffic" element={<div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"><TrafficPage /></div>} />
+              <Route path="/infrastructure" element={<div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"><InfrastructurePage /></div>} />
               <Route path="/map" element={<div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"><MapPage /></div>} />
               <Route path="/services" element={<div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8"><PublicServicesPage /></div>} />
               
@@ -137,6 +153,16 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ProfilePage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/api-settings" 
+                element={
+                  <ProtectedRoute>
+                    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                      <APISettingsPage />
+                    </div>
                   </ProtectedRoute>
                 } 
               />
