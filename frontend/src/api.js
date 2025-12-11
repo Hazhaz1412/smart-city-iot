@@ -146,8 +146,8 @@ export const publicServiceAPI = {
 
 // Integration
 export const integrationAPI = {
-  syncWeather: () => api.post('/sync/weather'),
-  syncAirQuality: () => api.post('/sync/air-quality'),
+  syncWeather: () => api.post('/integrations/sync/weather/'),
+  syncAirQuality: () => api.post('/integrations/sync/air-quality/'),
 };
 
 // Health

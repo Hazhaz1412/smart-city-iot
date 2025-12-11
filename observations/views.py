@@ -13,7 +13,9 @@ from .serializers import (
     ObservationSerializer,
     WeatherObservationSerializer,
     AirQualityObservationSerializer,
-    TrafficObservationSerializer
+    TrafficObservationSerializer,
+    WeatherObservationNGSILDSerializer,
+    AirQualityObservationNGSILDSerializer
 )
 
 
@@ -92,6 +94,20 @@ class WeatherObservationViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         else:
             return Response({'message': 'No data found'}, status=404)
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        """Get weather observations in NGSI-LD format"""
+        queryset = self.get_queryset()
+        serializer = WeatherObservationNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        """Get single weather observation in NGSI-LD format"""
+        instance = self.get_object()
+        serializer = WeatherObservationNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class AirQualityObservationViewSet(viewsets.ModelViewSet):
@@ -138,6 +154,20 @@ class AirQualityObservationViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         else:
             return Response({'message': 'No data found'}, status=404)
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        """Get air quality observations in NGSI-LD format"""
+        queryset = self.get_queryset()
+        serializer = AirQualityObservationNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        """Get single air quality observation in NGSI-LD format"""
+        instance = self.get_object()
+        serializer = AirQualityObservationNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class TrafficObservationViewSet(viewsets.ModelViewSet):

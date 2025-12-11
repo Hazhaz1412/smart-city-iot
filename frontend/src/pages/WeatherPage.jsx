@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { weatherObservationAPI, weatherStationAPI } from '../api';
+import api, { weatherObservationAPI, weatherStationAPI } from '../api';
+import { parseWeatherObservation } from '../utils/ngsiParser';
 
 export default function WeatherPage() {
   const [observations, setObservations] = useState([]);
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchCity, setSearchCity] = useState('');
 
   useEffect(() => {
@@ -14,14 +16,22 @@ export default function WeatherPage() {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Fetch NGSI-LD format data
       const [obsResponse, stationsResponse] = await Promise.all([
-        weatherObservationAPI.getAll({ hours: 24 }),
+        api.get('/weather/ngsi-ld/'),
         weatherStationAPI.getAll(),
       ]);
-      setObservations(obsResponse.data.results || obsResponse.data || []);
+      
+      // Parse NGSI-LD to flat objects
+      const obsData = (obsResponse.data || []).map(parseWeatherObservation);
+      
+      setObservations(obsData);
       setStations(stationsResponse.data.results || stationsResponse.data || []);
     } catch (error) {
       console.error('Error loading weather data:', error);
+      setError('Không thể tải dữ liệu thời tiết');
     } finally {
       setLoading(false);
     }

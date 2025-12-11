@@ -86,7 +86,7 @@ export default function Dashboard() {
   const handleSync = async (type) => {
     setSyncing(prev => ({ ...prev, [type]: true }));
     try {
-      const endpoint = type === 'weather' ? '/integrations/sync/weather' : '/integrations/sync/air-quality';
+      const endpoint = type === 'weather' ? '/integrations/sync/weather/' : '/integrations/sync/air-quality/';
       await api.post(endpoint, {
         lat: currentCity.lat,
         lon: currentCity.lon,

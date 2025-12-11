@@ -4,7 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Count, Avg
 from .models import BusStation, TrafficFlow, TrafficIncident, ParkingSpot
-from .serializers import BusStationSerializer, TrafficFlowSerializer, TrafficIncidentSerializer, ParkingSpotSerializer
+from .serializers import (
+    BusStationSerializer, TrafficFlowSerializer, TrafficIncidentSerializer, ParkingSpotSerializer,
+    BusStationNGSILDSerializer, TrafficFlowNGSILDSerializer, TrafficIncidentNGSILDSerializer, ParkingSpotNGSILDSerializer
+)
 
 
 class BusStationViewSet(viewsets.ModelViewSet):
@@ -12,7 +15,7 @@ class BusStationViewSet(viewsets.ModelViewSet):
     serializer_class = BusStationSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -29,6 +32,20 @@ class BusStationViewSet(viewsets.ModelViewSet):
         by_status = list(BusStation.objects.values("status").annotate(count=Count("id")))
         by_city = list(BusStation.objects.values("city").annotate(count=Count("id")))
         return Response({"total": total, "by_status": by_status, "by_city": by_city})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        """Get all bus stations in NGSI-LD format"""
+        queryset = self.get_queryset()
+        serializer = BusStationNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        """Get single bus station in NGSI-LD format"""
+        instance = self.get_object()
+        serializer = BusStationNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class TrafficFlowViewSet(viewsets.ModelViewSet):
@@ -36,7 +53,7 @@ class TrafficFlowViewSet(viewsets.ModelViewSet):
     serializer_class = TrafficFlowSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -53,6 +70,20 @@ class TrafficFlowViewSet(viewsets.ModelViewSet):
         avg_speed = TrafficFlow.objects.aggregate(avg=Avg("average_speed"))["avg"] or 0
         by_congestion = list(TrafficFlow.objects.values("congestion_level").annotate(count=Count("id")))
         return Response({"total": total, "average_speed": round(avg_speed, 2), "by_congestion_level": by_congestion})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        """Get all traffic flows in NGSI-LD format"""
+        queryset = self.get_queryset()
+        serializer = TrafficFlowNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        """Get single traffic flow in NGSI-LD format"""
+        instance = self.get_object()
+        serializer = TrafficFlowNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class TrafficIncidentViewSet(viewsets.ModelViewSet):
@@ -60,7 +91,7 @@ class TrafficIncidentViewSet(viewsets.ModelViewSet):
     serializer_class = TrafficIncidentSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -78,6 +109,20 @@ class TrafficIncidentViewSet(viewsets.ModelViewSet):
         by_type = list(TrafficIncident.objects.values("incident_type").annotate(count=Count("id")))
         by_severity = list(TrafficIncident.objects.values("severity").annotate(count=Count("id")))
         return Response({"total": total, "active_incidents": active, "by_type": by_type, "by_severity": by_severity})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        """Get all incidents in NGSI-LD format"""
+        queryset = self.get_queryset()
+        serializer = TrafficIncidentNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        """Get single incident in NGSI-LD format"""
+        instance = self.get_object()
+        serializer = TrafficIncidentNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class ParkingSpotViewSet(viewsets.ModelViewSet):
@@ -85,7 +130,7 @@ class ParkingSpotViewSet(viewsets.ModelViewSet):
     serializer_class = ParkingSpotSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -99,10 +144,24 @@ class ParkingSpotViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def statistics(self, request):
         total_lots = ParkingSpot.objects.count()
-        total_spaces = sum(ParkingSpot.objects.values_list("total_spaces", flat=True))
-        available_spaces = sum(ParkingSpot.objects.values_list("available_spaces", flat=True))
+        total_spaces = sum(ParkingSpot.objects.values_list("total_spots", flat=True))
+        available_spaces = sum(ParkingSpot.objects.values_list("available_spots", flat=True))
         occupancy = round(((total_spaces - available_spaces) / total_spaces * 100), 2) if total_spaces > 0 else 0
         return Response({"total_lots": total_lots, "total_spaces": total_spaces, "available_spaces": available_spaces, "occupancy_rate": occupancy})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        """Get all parking spots in NGSI-LD format"""
+        queryset = self.get_queryset()
+        serializer = ParkingSpotNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        """Get single parking spot in NGSI-LD format"""
+        instance = self.get_object()
+        serializer = ParkingSpotNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class TrafficSummaryViewSet(viewsets.ViewSet):

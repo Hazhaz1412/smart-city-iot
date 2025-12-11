@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import { parseBusStation, parseTrafficFlow, parseTrafficIncident, parseParkingSpot } from '../utils/ngsiParser';
 
 // Congestion level colors
 const CONGESTION_COLORS = {
@@ -63,18 +64,25 @@ export default function TrafficPage() {
     try {
       const cityParam = selectedCity !== 'all' ? `?city=${selectedCity}` : '';
       
+      // Fetch NGSI-LD format data
       const [busRes, flowRes, incidentRes, parkingRes, statsRes] = await Promise.all([
-        api.get(`/traffic/bus-stations/${cityParam}`),
-        api.get(`/traffic/traffic-flows/${cityParam}`),
-        api.get(`/traffic/incidents/${cityParam}`),
-        api.get(`/traffic/parking/${cityParam}`),
+        api.get(`/traffic/bus-stations/ngsi-ld/${cityParam}`),
+        api.get(`/traffic/traffic-flows/ngsi-ld/${cityParam}`),
+        api.get(`/traffic/incidents/ngsi-ld/${cityParam}`),
+        api.get(`/traffic/parking/ngsi-ld/${cityParam}`),
         api.get('/traffic/summary/')
       ]);
 
-      setBusStations(busRes.data.results || busRes.data);
-      setTrafficFlows(flowRes.data.results || flowRes.data);
-      setIncidents(incidentRes.data.results || incidentRes.data);
-      setParkingSpots(parkingRes.data.results || parkingRes.data);
+      // Parse NGSI-LD to flat objects
+      const busData = (busRes.data || []).map(parseBusStation);
+      const flowData = (flowRes.data || []).map(parseTrafficFlow);
+      const incidentData = (incidentRes.data || []).map(parseTrafficIncident);
+      const parkingData = (parkingRes.data || []).map(parseParkingSpot);
+
+      setBusStations(busData);
+      setTrafficFlows(flowData);
+      setIncidents(incidentData);
+      setParkingSpots(parkingData);
       setStatistics(statsRes.data);
     } catch (err) {
       console.error('Error fetching traffic data:', err);

@@ -14,7 +14,8 @@ from .serializers import (
     WeatherStationSerializer,
     AirQualitySensorSerializer,
     TrafficSensorSerializer,
-    PublicServiceSerializer
+    PublicServiceSerializer,
+    PublicServiceNGSILDSerializer
 )
 from core.orion_client import OrionLDClient
 from core.ngsi_ld import (
@@ -193,17 +194,45 @@ class PublicServiceViewSet(viewsets.ModelViewSet):
         
         return queryset
     
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        """Get all public services in NGSI-LD format"""
+        service_type = request.query_params.get('type', None)
+        queryset = self.get_queryset()
+        
+        if service_type:
+            queryset = queryset.filter(service_type=service_type)
+        
+        serializer = PublicServiceNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        """Get single public service in NGSI-LD format"""
+        instance = self.get_object()
+        serializer = PublicServiceNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
+    
     @action(detail=False, methods=['get'])
     def nearby(self, request):
         """Find nearby public services"""
-        lat = float(request.query_params.get('lat', 0))
-        lon = float(request.query_params.get('lon', 0))
+        lat = request.query_params.get('lat', None)
+        lon = request.query_params.get('lon', None)
+        
+        if not lat or not lon:
+            return Response(
+                {"error": "lat and lon parameters are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        lat = float(lat)
+        lon = float(lon)
         radius = float(request.query_params.get('radius', 5))  # km
         service_type = request.query_params.get('type', None)
         
         # Simple bounding box query
         lat_delta = radius / 111.0
-        lon_delta = radius / (111.0 * abs(lat))
+        lon_delta = radius / (111.0 * max(abs(lat), 0.001))  # Prevent division by zero
         
         services = PublicService.objects.filter(
             latitude__range=(lat - lat_delta, lat + lat_delta),
@@ -213,6 +242,12 @@ class PublicServiceViewSet(viewsets.ModelViewSet):
         
         if service_type:
             services = services.filter(service_type=service_type)
+        
+        # Check for ngsi-ld format parameter
+        format_type = request.query_params.get('format', 'json')
+        if format_type == 'ngsi-ld':
+            serializer = PublicServiceNGSILDSerializer(services, many=True)
+            return Response(serializer.data, content_type='application/ld+json')
         
         serializer = self.get_serializer(services, many=True)
         return Response(serializer.data)

@@ -4,7 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.db.models import Count, Sum, Avg
 from .models import WaterSupplyPoint, DrainagePoint, StreetLight, EnergyMeter, TelecomTower
-from .serializers import WaterSupplyPointSerializer, DrainagePointSerializer, StreetLightSerializer, EnergyMeterSerializer, TelecomTowerSerializer
+from .serializers import (
+    WaterSupplyPointSerializer, DrainagePointSerializer, StreetLightSerializer, EnergyMeterSerializer, TelecomTowerSerializer,
+    WaterSupplyPointNGSILDSerializer, DrainagePointNGSILDSerializer, StreetLightNGSILDSerializer, EnergyMeterNGSILDSerializer, TelecomTowerNGSILDSerializer
+)
 
 
 class WaterSupplyPointViewSet(viewsets.ModelViewSet):
@@ -12,7 +15,7 @@ class WaterSupplyPointViewSet(viewsets.ModelViewSet):
     serializer_class = WaterSupplyPointSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -31,6 +34,18 @@ class WaterSupplyPointViewSet(viewsets.ModelViewSet):
         by_type = list(WaterSupplyPoint.objects.values("point_type").annotate(count=Count("id")))
         by_status = list(WaterSupplyPoint.objects.values("status").annotate(count=Count("id")))
         return Response({"total_points": total, "total_capacity": total_capacity, "current_storage": total_current, "by_type": by_type, "by_status": by_status})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        queryset = self.get_queryset()
+        serializer = WaterSupplyPointNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        instance = self.get_object()
+        serializer = WaterSupplyPointNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class DrainagePointViewSet(viewsets.ModelViewSet):
@@ -38,7 +53,7 @@ class DrainagePointViewSet(viewsets.ModelViewSet):
     serializer_class = DrainagePointSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -56,6 +71,18 @@ class DrainagePointViewSet(viewsets.ModelViewSet):
         by_status = list(DrainagePoint.objects.values("status").annotate(count=Count("id")))
         by_flood_risk = list(DrainagePoint.objects.values("flood_risk").annotate(count=Count("id")))
         return Response({"total_points": total, "critical_count": DrainagePoint.objects.filter(status="critical").count(), "by_type": by_type, "by_status": by_status, "by_flood_risk": by_flood_risk})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        queryset = self.get_queryset()
+        serializer = DrainagePointNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        instance = self.get_object()
+        serializer = DrainagePointNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class StreetLightViewSet(viewsets.ModelViewSet):
@@ -63,7 +90,7 @@ class StreetLightViewSet(viewsets.ModelViewSet):
     serializer_class = StreetLightSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -93,6 +120,18 @@ class StreetLightViewSet(viewsets.ModelViewSet):
             return Response({"error": "Cannot toggle in current status"}, status=400)
         light.save()
         return Response({"status": light.status})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        queryset = self.get_queryset()
+        serializer = StreetLightNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        instance = self.get_object()
+        serializer = StreetLightNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class EnergyMeterViewSet(viewsets.ModelViewSet):
@@ -100,7 +139,7 @@ class EnergyMeterViewSet(viewsets.ModelViewSet):
     serializer_class = EnergyMeterSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -119,6 +158,18 @@ class EnergyMeterViewSet(viewsets.ModelViewSet):
         by_type = list(EnergyMeter.objects.values("meter_type").annotate(count=Count("id")))
         by_status = list(EnergyMeter.objects.values("status").annotate(count=Count("id")))
         return Response({"total_meters": total, "total_current_power": round(total_power, 2), "total_consumption_today": round(total_today, 2), "by_type": by_type, "by_status": by_status})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        queryset = self.get_queryset()
+        serializer = EnergyMeterNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        instance = self.get_object()
+        serializer = EnergyMeterNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class TelecomTowerViewSet(viewsets.ModelViewSet):
@@ -126,7 +177,7 @@ class TelecomTowerViewSet(viewsets.ModelViewSet):
     serializer_class = TelecomTowerSerializer
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'statistics']:
+        if self.action in ['list', 'retrieve', 'statistics', 'ngsi_ld', 'ngsi_ld_detail']:
             return [AllowAny()]
         return [IsAuthenticated()]
     
@@ -143,8 +194,20 @@ class TelecomTowerViewSet(viewsets.ModelViewSet):
         total_connections = TelecomTower.objects.aggregate(sum=Sum("active_connections"))["sum"] or 0
         max_connections = TelecomTower.objects.aggregate(sum=Sum("max_connections"))["sum"] or 0
         by_type = list(TelecomTower.objects.values("tower_type").annotate(count=Count("id")))
-        by_provider = list(TelecomTower.objects.values("provider").annotate(count=Count("id")))
+        by_provider = list(TelecomTower.objects.values("operator").annotate(count=Count("id")))
         return Response({"total_towers": total, "total_active_connections": total_connections, "by_type": by_type, "by_provider": by_provider})
+    
+    @action(detail=False, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld(self, request):
+        queryset = self.get_queryset()
+        serializer = TelecomTowerNGSILDSerializer(queryset, many=True)
+        return Response(serializer.data, content_type='application/ld+json')
+    
+    @action(detail=True, methods=['get'], url_path='ngsi-ld')
+    def ngsi_ld_detail(self, request, pk=None):
+        instance = self.get_object()
+        serializer = TelecomTowerNGSILDSerializer(instance)
+        return Response(serializer.data, content_type='application/ld+json')
 
 
 class InfrastructureSummaryViewSet(viewsets.ViewSet):

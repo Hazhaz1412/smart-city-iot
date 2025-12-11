@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { airQualityObservationAPI, airQualityAPI } from '../api';
+import api, { airQualityAPI } from '../api';
+import { parseAirQualityObservation } from '../utils/ngsiParser';
 
 export default function AirQualityPage() {
   const [observations, setObservations] = useState([]);
   const [sensors, setSensors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -13,14 +15,22 @@ export default function AirQualityPage() {
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Fetch NGSI-LD format data
       const [obsResponse, sensorsResponse] = await Promise.all([
-        airQualityObservationAPI.getAll({ hours: 24 }),
+        api.get('/air-quality/ngsi-ld/'),
         airQualityAPI.getAll(),
       ]);
-      setObservations(obsResponse.data.results || obsResponse.data || []);
+      
+      // Parse NGSI-LD to flat objects
+      const obsData = (obsResponse.data || []).map(parseAirQualityObservation);
+      
+      setObservations(obsData);
       setSensors(sensorsResponse.data.results || sensorsResponse.data || []);
     } catch (error) {
       console.error('Error loading air quality data:', error);
+      setError('Không thể tải dữ liệu chất lượng không khí');
     } finally {
       setLoading(false);
     }

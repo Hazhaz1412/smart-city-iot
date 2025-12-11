@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api';
+import { parseWaterSupply, parseDrainage, parseStreetLight, parseEnergyMeter, parseTelecomTower } from '../utils/ngsiParser';
 
 // Status colors
 const STATUS_COLORS = {
@@ -57,20 +58,28 @@ export default function InfrastructurePage() {
     try {
       const cityParam = selectedCity !== 'all' ? `?city=${selectedCity}` : '';
       
+      // Fetch NGSI-LD format data
       const [waterRes, drainageRes, lightsRes, energyRes, telecomRes, summaryRes] = await Promise.all([
-        api.get(`/infrastructure/water-supply/${cityParam}`),
-        api.get(`/infrastructure/drainage/${cityParam}`),
-        api.get(`/infrastructure/street-lights/${cityParam}`),
-        api.get(`/infrastructure/energy/${cityParam}`),
-        api.get(`/infrastructure/telecom/${cityParam}`),
+        api.get(`/infrastructure/water-supply/ngsi-ld/${cityParam}`),
+        api.get(`/infrastructure/drainage/ngsi-ld/${cityParam}`),
+        api.get(`/infrastructure/street-lights/ngsi-ld/${cityParam}`),
+        api.get(`/infrastructure/energy/ngsi-ld/${cityParam}`),
+        api.get(`/infrastructure/telecom/ngsi-ld/${cityParam}`),
         api.get('/infrastructure/summary/')
       ]);
 
-      setWaterSupply(waterRes.data.results || waterRes.data);
-      setDrainage(drainageRes.data.results || drainageRes.data);
-      setStreetLights(lightsRes.data.results || lightsRes.data);
-      setEnergyMeters(energyRes.data.results || energyRes.data);
-      setTelecomTowers(telecomRes.data.results || telecomRes.data);
+      // Parse NGSI-LD to flat objects
+      const waterData = (waterRes.data || []).map(parseWaterSupply);
+      const drainageData = (drainageRes.data || []).map(parseDrainage);
+      const lightsData = (lightsRes.data || []).map(parseStreetLight);
+      const energyData = (energyRes.data || []).map(parseEnergyMeter);
+      const telecomData = (telecomRes.data || []).map(parseTelecomTower);
+
+      setWaterSupply(waterData);
+      setDrainage(drainageData);
+      setStreetLights(lightsData);
+      setEnergyMeters(energyData);
+      setTelecomTowers(telecomData);
       setSummary(summaryRes.data);
     } catch (err) {
       console.error('Error fetching infrastructure data:', err);
